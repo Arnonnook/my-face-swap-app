@@ -8,14 +8,37 @@ import requests
 import os
 
 # ฟังก์ชันดาวน์โหลด Model (ป้องกันไฟล์ใหญ่เกิน GitHub)
-def download_model(url, save_path):
-    if not os.path.exists(save_path):
-        with st.spinner("กำลังดาวน์โหลด AI Model (ครั้งแรกครั้งเดียว)..."):
-            response = requests.get(url)
-            with open(save_path, "wb") as f:
-                f.write(response.content)
-        st.success("ดาวน์โหลด Model สำเร็จ!")
+import streamlit as st
+import cv2
+import numpy as np
+import insightface
+from insightface.app import FaceAnalysis
+from PIL import Image
+import requests
+import os
 
+# --- แก้ไขฟังก์ชันดาวน์โหลดใหม่ให้เช็คขนาดไฟล์ด้วย ---
+def download_model(url, save_path):
+    if not os.path.exists(save_path) or os.path.getsize(save_path) < 1000000: # ถ้าไม่มีไฟล์ หรือไฟล์เล็กผิดปกติ (< 1MB)
+        with st.spinner("กำลังดาวน์โหลด AI Model (ประมาณ 500MB) โปรดรอสักครู่..."):
+            try:
+                # ใช้ stream=True เพื่อจัดการไฟล์ขนาดใหญ่ได้ดีขึ้น
+                with requests.get(url, stream=True) as r:
+                    r.raise_for_status()
+                    with open(save_path, 'wb') as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                st.success("ดาวน์โหลด Model สำเร็จ!")
+            except Exception as e:
+                st.error(f"ดาวน์โหลดล้มเหลว: {e}")
+                if os.path.exists(save_path): os.remove(save_path) # ลบไฟล์ที่เสียทิ้ง
+
+# --- เปลี่ยน Link ใหม่ที่เสถียรกว่า (Link ตรงจาก Hugging Face) ---
+model_url = "https://huggingface.co/ezioruan/inswapper_128.onnx/resolve/main/inswapper_128.onnx"
+model_path = "inswapper_128.onnx"
+download_model(model_url, model_path)
+
+# ส่วนที่เหลือของโค้ด load_models() และ UI เหมือนเดิมครับ...
 st.title("🎭 JAAO Face Swap Studio")
 
 # 1. เตรียม Model
